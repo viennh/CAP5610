@@ -12,12 +12,12 @@ import torch
 import bitsandbytes as bnb
 
 # ---- CONFIG ----
-#MODEL_NAME = "meta-llama/Meta-Llama-3-8B"       # or your local base model
+MODEL_NAME = "meta-llama/Meta-Llama-3-8B"       # or your local base model
 #MODEL_NAME = "meta-llama/Llama-2-7b-hf" #for local with no GPU
-MODEL_NAME = "meta-llama/Llama-2-7b"
+#MODEL_NAME = "meta-llama/Llama-2-7b"
 #MODEL_NAME = "meta-llama/Llama-2-7b-chat-hf"
 DATA_DIR = "./EduInstruct"
-OUTPUT_DIR = "./llama2-edu-qlora"
+OUTPUT_DIR = "./llama3-edu-qlora"
 LORA_R = 16
 LORA_ALPHA = 32
 LORA_TARGET_MODULES = ["q_proj","v_proj","k_proj","o_proj","w1","w2"]  # typical targets, adapt if mismatch
