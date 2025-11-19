@@ -21,13 +21,13 @@ OUTPUT_DIR = "./llama2-edu-qlora"
 LORA_R = 16
 LORA_ALPHA = 32
 LORA_TARGET_MODULES = ["q_proj","v_proj","k_proj","o_proj","w1","w2"]  # typical targets, adapt if mismatch
-BATCH_SIZE = 4
-EPOCHS = 3
+BATCH_SIZE = 2
+EPOCHS = 1
 LR = 2e-4
-MAX_LENGTH = 512
+MAX_LENGTH = 256
 
 # ---- Load tokenizer & dataset ----
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_fast=False)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_fast=False, use_cache=False)
 # tokenizer.add_special_tokens({'pad_token': '[PAD]'})
 tokenizer.pad_token = tokenizer.eos_token
 
@@ -60,6 +60,7 @@ model = AutoModelForCausalLM.from_pretrained(
     MODEL_NAME,
     device_map="auto",
     quantization_config=bnb_config,
+    use_cache=False
     # quantization_config=bnb.nn.quantization.QuantizationConfig(
     #     load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True
     # )
