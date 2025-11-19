@@ -12,12 +12,12 @@ import torch
 import bitsandbytes as bnb
 
 # ---- CONFIG ----
-MODEL_NAME = "meta-llama/Meta-Llama-3-8B"       # or your local base model
+#MODEL_NAME = "meta-llama/Meta-Llama-3-8B"       # or your local base model
 #MODEL_NAME = "meta-llama/Llama-2-7b-hf" #for local with no GPU
-#MODEL_NAME = "meta-llama/Llama-2-7b"
+MODEL_NAME = "meta-llama/Llama-2-7b"
 #MODEL_NAME = "meta-llama/Llama-2-7b-chat-hf"
 DATA_DIR = "./EduInstruct"
-OUTPUT_DIR = "./llama3-edu-qlora"
+OUTPUT_DIR = "./llama2-edu-qlora"
 LORA_R = 16
 LORA_ALPHA = 32
 LORA_TARGET_MODULES = ["q_proj","v_proj","k_proj","o_proj","w1","w2"]  # typical targets, adapt if mismatch
@@ -53,8 +53,8 @@ eval_ds = dataset["test"]
 bnb_config = BitsAndBytesConfig(
     load_in_4bit=True,  # bitsandbytes 4-bit quant
     bnb_4bit_quant_type="nf4",
-    bnb_4bit_use_double_quant=True,
-    bnb_4bit_compute_dtype=torch.bfloat16
+    bnb_4bit_use_double_quant=False,
+    bnb_4bit_compute_dtype=torch.float16
 )
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_NAME,
@@ -70,14 +70,31 @@ model = prepare_model_for_kbit_training(model)
 
 # ---- PEFT LoRA adapter ----
 lora_config = LoraConfig(
+    # LoRA rank dimension
     r=LORA_R,
+    # Alpha parameter for LoRA scaling
     lora_alpha=LORA_ALPHA,
     target_modules=LORA_TARGET_MODULES,
+    # Dropout rate for LoRA layers
     lora_dropout=0.05,
     bias="none",
     task_type="CAUSAL_LM"
 )
+def print_number_of_trainable_model_parameters(model, use_4bit=True):
+    trainable_model_params = 0
+    all_model_params = 0
+    for _, param in model.named_parameters():
+        all_model_params += param.numel()
+        if param.requires_grad:
+            trainable_model_params += param.numel()
+    if use_4bit:
+        all_model_params *= 2
+        trainable_model_params *= 2
+    print(f"Total model parameters: {all_model_params:,d}. Trainable model parameters: {trainable_model_params:,d}. Percent of trainable parameters: {100 * trainable_model_params/ all_model_params:4.2f} %")
+
 model = get_peft_model(model, lora_config)
+
+print_number_of_trainable_model_parameters(model)
 
 # ---- TrainingArgs & Trainer ----
 data_collator = DataCollatorForLanguageModeling(tokenizer, mlm=False)
