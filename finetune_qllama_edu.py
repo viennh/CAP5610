@@ -12,10 +12,10 @@ import torch
 import bitsandbytes as bnb
 
 # ---- CONFIG ----
-#MODEL_NAME = "meta-llama/Llama-3.1-8B"       # or your local base model
+MODEL_NAME = "meta-llama/Llama-3.1-8B"       # or your local base model
 #MODEL_NAME = "meta-llama/Llama-2-7b-hf" #for local with no GPU
 #MODEL_NAME = "meta-llama/Llama-2-7b"
-MODEL_NAME = "meta-llama/Llama-2-7b-chat-hf"
+#MODEL_NAME = "meta-llama/Llama-2-7b-chat-hf"
 DATA_DIR = "./EduInstruct"
 OUTPUT_DIR = "./llama2-edu-qlora"
 LORA_R = 16
@@ -52,11 +52,11 @@ eval_ds = dataset["test"]
 # ---- Load quantized model and prepare for k-bit training ----
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_NAME,
-    load_in_4bit=false,                # bitsandbytes 4-bit quant
+    load_in_4bit=True,                # bitsandbytes 4-bit quant
     device_map="auto",
-    # quantization_config=bnb.nn.quantization.QuantizationConfig(
-    #     load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True
-    # )
+    quantization_config=bnb.nn.quantization.QuantizationConfig(
+        load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True
+    )
 )
 
 # Prepare for k-bit training
