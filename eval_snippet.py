@@ -1,4 +1,4 @@
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from datasets import load_from_disk
 from peft import PeftModel
 import numpy as np
@@ -240,10 +240,18 @@ def evaluate_models_separately(dataset, max_samples=None):
     print("="*60)
     
     print("Loading fine-tuned model...")
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,  # bitsandbytes 4-bit quant
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_use_double_quant=False,
+        bnb_4bit_compute_dtype=torch.float16
+    )
     base_for_ft = AutoModelForCausalLM.from_pretrained(
         MODEL,
-        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-        low_cpu_mem_usage=True
+        torch_dtype=torch.float16,
+        low_cpu_mem_usage=True,
+        quantization_config=bnb_config,
+        use_cache=False,
     ).to(device)
     
     ft_model = PeftModel.from_pretrained(base_for_ft, FT_MODEL)
