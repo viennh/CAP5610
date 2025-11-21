@@ -12,7 +12,7 @@ import gc
 MODEL = "meta-llama/Llama-2-7b-hf"
 FT_MODEL = "./llama2-edu-qlora/lora_adapter"  # fine-tuned adapters
 DATA_DIR = "./EduInstruct"
-MAX_EVAL_SAMPLES = 100  # Set to None to evaluate all, or a number to limit
+MAX_EVAL_SAMPLES = 50  # Set to None to evaluate all, or a number to limit
 
 # Set threading to avoid conflicts
 torch.set_num_threads(1)
@@ -27,14 +27,32 @@ print(f"Using device: {device}")
 
 def generate_answer(model, prompt, max_new_tokens=256):
     """Generate answer from model given a prompt."""
-    # Get device from model
-    if hasattr(model, 'device') and model.device.type != 'meta':
-        device = model.device
-    else:
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # For quantized models with device_map="auto", inputs are handled automatically
+    # Tokenize input
+    inputs = tokenizer(prompt, return_tensors="pt")
     
-    # Tokenize and move to device
-    inputs = tokenizer(prompt, return_tensors="pt").to(device)
+    # For models with device_map="auto", let the model handle device placement
+    # Otherwise, move to appropriate device
+    if hasattr(model, 'hf_device_map') and model.hf_device_map:
+        # device_map="auto" - model will handle placement, but we need to move inputs
+        # Find the first device from the device map
+        first_device = None
+        for device_info in model.hf_device_map.values():
+            if isinstance(device_info, (list, tuple)) and len(device_info) > 0:
+                first_device = device_info[0]
+                break
+            elif isinstance(device_info, torch.device):
+                first_device = device_info
+                break
+        
+        if first_device and first_device.type != 'meta':
+            inputs = {k: v.to(first_device) for k, v in inputs.items()}
+        elif torch.cuda.is_available():
+            inputs = {k: v.to("cuda:0") for k, v in inputs.items()}
+    elif hasattr(model, 'device') and model.device.type != 'meta':
+        inputs = {k: v.to(model.device) for k, v in inputs.items()}
+    elif torch.cuda.is_available():
+        inputs = {k: v.to("cuda:0") for k, v in inputs.items()}
     
     with torch.no_grad():
         out = model.generate(
@@ -162,7 +180,10 @@ def evaluate_single_model(dataset, model, model_name, max_samples=None):
     
     print(f"\nEvaluating {model_name} on {len(dataset)} samples...")
     
-    for example in tqdm(dataset, desc=f"Evaluating {model_name}"):
+    # Process in smaller batches to manage memory
+    batch_size = 2  # Process and clear memory every N samples
+    
+    for i, example in enumerate(tqdm(dataset, desc=f"Evaluating {model_name}")):
         # Build prompt
         prompt = build_eval_prompt(example)
         
@@ -201,6 +222,12 @@ def evaluate_single_model(dataset, model, model_name, max_samples=None):
         results['by_subject'][subject]['total'] += 1
         if correct:
             results['by_subject'][subject]['correct'] += 1
+        
+        # Periodic memory cleanup
+        if (i + 1) % batch_size == 0:
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            gc.collect()
     
     return results
 
@@ -216,12 +243,26 @@ def evaluate_models_separately(dataset, max_samples=None):
     print("STEP 1: Evaluating Base Model")
     print("="*60)
     
-    print("Loading base model...")
+    print("Loading base model with 4-bit quantization...")
+    # Clear memory before loading
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()
+    
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,  # bitsandbytes 4-bit quant
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_use_double_quant=False,
+        bnb_4bit_compute_dtype=torch.float16
+    )
     base_model = AutoModelForCausalLM.from_pretrained(
         MODEL, 
-        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-        low_cpu_mem_usage=True
-    ).to(device)
+        quantization_config=bnb_config,
+        device_map="auto",
+        torch_dtype=torch.float16,
+        low_cpu_mem_usage=True,
+        use_cache=False
+    )
     print("Base model loaded.")
     
     try:
@@ -239,7 +280,12 @@ def evaluate_models_separately(dataset, max_samples=None):
     print("STEP 2: Evaluating Fine-tuned Model")
     print("="*60)
     
-    print("Loading fine-tuned model...")
+    print("Loading fine-tuned model with 4-bit quantization...")
+    # Clear memory before loading
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()
+    
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,  # bitsandbytes 4-bit quant
         bnb_4bit_quant_type="nf4",
@@ -248,11 +294,11 @@ def evaluate_models_separately(dataset, max_samples=None):
     )
     base_for_ft = AutoModelForCausalLM.from_pretrained(
         MODEL,
+        quantization_config=bnb_config,
+        device_map="auto",
         torch_dtype=torch.float16,
         low_cpu_mem_usage=True,
-        quantization_config=bnb_config,
-        use_cache=False,
-        device_map="auto"
+        use_cache=False
     )
     
     ft_model = PeftModel.from_pretrained(base_for_ft, FT_MODEL)
@@ -265,7 +311,6 @@ def evaluate_models_separately(dataset, max_samples=None):
         del ft_model, base_for_ft
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-        import gc
         gc.collect()
         print("Fine-tuned model unloaded.")
     
@@ -317,12 +362,27 @@ if __name__ == "__main__":
     dataset = load_from_disk(DATA_DIR)
     print(f"Dataset loaded: {len(dataset)} samples")
     
-    # Clear any CUDA cache
+    # Safety check: limit evaluation if MAX_EVAL_SAMPLES is too high
+    if MAX_EVAL_SAMPLES is None:
+        print("WARNING: MAX_EVAL_SAMPLES is None. This will evaluate all samples and may cause OOM.")
+        print("Consider setting MAX_EVAL_SAMPLES to a smaller number (e.g., 100-1000) for testing.")
+        response = input("Continue with full evaluation? (y/n): ")
+        if response.lower() != 'y':
+            MAX_EVAL_SAMPLES = 100
+            print(f"Limiting to {MAX_EVAL_SAMPLES} samples.")
+    
+    # Clear any CUDA cache before starting
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
+    gc.collect()
     
     # Evaluate models separately to avoid mutex conflicts
     results = evaluate_models_separately(dataset, max_samples=MAX_EVAL_SAMPLES)
     
     # Print results
     print_results(results)
+    
+    # Final cleanup
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()

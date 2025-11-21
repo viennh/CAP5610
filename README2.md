@@ -20,7 +20,9 @@ python build_and_push_edu_instruct.py --username viennh2012
     - f6593607fe4fe920d6cd3cfba61a9f3d232752dd
 3) Finetune Dataset 
 + pip install -U transformers datasets accelerate peft bitsandbytes einops evaluate rouge_score
++ pip install sentencepiece
 + pip install wandb
++ pip -r requirements.txt
 + Notes:
    - load_in_4bit=True requires bitsandbytes v0.39+ and CUDA GPU.
    - target_modules vary by model impl; check your model’s module names.
