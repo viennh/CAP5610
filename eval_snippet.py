@@ -7,7 +7,7 @@ import numpy as np
 MODEL = "meta-llama/Llama-2-7b-hf"
 FT_MODEL = "./llama2-edu-qlora/lora_adapter"  # fine-tuned adapters
 
-tokenizer = AutoTokenizer.from_pretrained(MODEL)
+tokenizer = AutoTokenizer.from_pretrained(MODEL, use_fast=False, use_cache=False)
 # Load base & fine-tuned (load base and apply adapters for ft)
 base = AutoModelForCausalLM.from_pretrained(MODEL, device_map="auto")
 # for ft: same base but load peft adapters

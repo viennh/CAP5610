@@ -13,7 +13,7 @@ import bitsandbytes as bnb
 
 # ---- CONFIG ----
 #MODEL_NAME = "meta-llama/Meta-Llama-3-8B"       # or your local base model
-MODEL_NAME = "meta-llama/Llama-2-7b-hf" #for local with no GPU
+MODEL_NAME = "meta-llama/Llama-2-7b-hf"
 #MODEL_NAME = "meta-llama/Llama-2-7b"
 #MODEL_NAME = "meta-llama/Llama-2-7b-chat-hf"
 DATA_DIR = "./EduInstruct"
@@ -22,7 +22,7 @@ LORA_R = 16
 LORA_ALPHA = 32
 LORA_TARGET_MODULES = ["q_proj","v_proj","k_proj","o_proj","w1","w2"]  # typical targets, adapt if mismatch
 BATCH_SIZE = 2
-EPOCHS = 3
+EPOCHS = 1
 LR = 2e-4
 MAX_LENGTH = 256
 
@@ -61,9 +61,6 @@ model = AutoModelForCausalLM.from_pretrained(
     device_map="auto",
     quantization_config=bnb_config,
     use_cache=False
-    # quantization_config=bnb.nn.quantization.QuantizationConfig(
-    #     load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True
-    # )
 )
 
 # Prepare for k-bit training
