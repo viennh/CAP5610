@@ -252,7 +252,8 @@ def evaluate_models_separately(dataset, max_samples=None):
         low_cpu_mem_usage=True,
         quantization_config=bnb_config,
         use_cache=False,
-    ).to(device)
+        device_map="auto"
+    )
     
     ft_model = PeftModel.from_pretrained(base_for_ft, FT_MODEL)
     print("Fine-tuned model loaded.")
