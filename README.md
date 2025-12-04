@@ -13,10 +13,10 @@ python build_and_push_edu_instruct.py --username viennh2012
   - source .venv2/bin/activate
   - pip install llama-models
   - hf auth login
-    - Token: ###
+    - Token: <your_hf_token_key>
     - Select "n" for adding to git credential
   - Make sure you have python3.10 or higher
-  - Wandb API key: ##
+  - Wandb API key: <your_wandb_api_key>
 3) Finetune Dataset 
 + pip install -U transformers datasets accelerate peft bitsandbytes einops evaluate rouge_score
 + pip install sentencepiece
