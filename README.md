@@ -1,142 +1,53 @@
-## **Note of deprecation**
+## **Build scripts**
+1) Build and Push Edu Instruct Dataset
+pip install datasets huggingface_hub tqdm
+python build_and_push_edu_instruct.py --username viennh2012
 
-Thank you for developing with Llama models. As part of the Llama 3.1 release, we’ve consolidated GitHub repos and added some additional repos as we’ve expanded Llama’s functionality into being an e2e Llama Stack. Please use the following repos going forward:
-- [llama-models](https://github.com/meta-llama/llama-models) - Central repo for the foundation models including basic utilities, model cards, license and use policies
-- [PurpleLlama](https://github.com/meta-llama/PurpleLlama) - Key component of Llama Stack focusing on safety risks and inference time mitigations 
-- [llama-toolchain](https://github.com/meta-llama/llama-toolchain) - Model development (inference/fine-tuning/safety shields/synthetic data generation) interfaces and canonical implementations
-- [llama-agentic-system](https://github.com/meta-llama/llama-agentic-system) - E2E standalone Llama Stack system, along with opinionated underlying interface, that enables creation of agentic applications
-- [llama-cookbook](https://github.com/meta-llama/llama-recipes) - Community driven scripts and integrations
+2) Install Llama
+- pip install llama-stack
+- download.sh https://download.llamameta.net/*?Policy=eyJTdGF0ZW1lbnQiOlt7InVuaXF1ZV9oYXNoIjoiaXExYTM4bmE2ZnltNGtleXN4M2xiOWRzIiwiUmVzb3VyY2UiOiJodHRwczpcL1wvZG93bmxvYWQubGxhbWFtZXRhLm5ldFwvKiIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc2MzYxNzc4Mn19fV19&Signature=GsKLW2wbU3AcVkxzcSFAktVXN88geX3aITCCS4BcR%7EHds3Sx7atPesrDyCGGEQkmEDhS%7ECa5zzJI9Y4MvmskYvjvasnw3JWlx%7Eutq52EmV%7E-4sMTZPbiCuwyD6rTU7f1FIKU-5VTq7KYV35SboewjrnADyHI7g-0hzugXLQd0TcZ7qbF7etXEcTvZU%7E0Km6tUSaRvOJ1XUKJ8jMFvMK8VP%7EHj%7E6mJRMVuJ8tHCI-fvopZzWajWn%7ERIregrvy9iwf9Vl6DtkWDWIqPLWUwna4Gw51qi%7EOziLfvq8rDUgHXJBn0ns0g1P4xG0BiH17dhyWaAi6YGkOZUsk4rnFz8s3xQ__&Key-Pair-Id=K15QRJLYKIFSLZ&Download-Request-ID=1149885780620845
+- Install llama-models cli
+  - pyenv install 3.14.0
+  - pyenv global 3.14.0
+  - deactivate
+  - source .venv2/bin/activate
+  - pip install llama-models
+  - hf auth login
+    - Token: ###
+    - Select "n" for adding to git credential
+  - Make sure you have python3.10 or higher
+  - Wandb API key: ##
+3) Finetune Dataset 
++ pip install -U transformers datasets accelerate peft bitsandbytes einops evaluate rouge_score
++ pip install sentencepiece
++ pip install wandb
++ pip -r requirements.txt
++ Notes:
+   - load_in_4bit=True requires bitsandbytes v0.39+ and CUDA GPU.
+   - target_modules vary by model impl; check your model’s module names.
+   - For CPU inference or full model, you can peft load adapters back onto a base model.
 
-If you have any questions, please feel free to file an issue on any of the above repos and we will do our best to respond in a timely manner. 
++ LoRA
+- load_in_4bit=False
+- use fp16 or bf16 accordingly
 
-Thank you!
 
+4) Hyperparameters & compute guidance
+- Suggested starting hyperparameters (adapt to dataset size & GPU):
+  + Epochs: 3 (monitor eval & early-stop)
+  + Batch size per device: 2–8 (depending on GPU RAM)
+  + Learning rate: 2e-4 (QLoRA), tune 1e-4–5e-4
+  + LoRA rank r: 8–32 (start 16)
+  + Max length: 256–1024 (Edu prompts likely short — use 512)
+  + Optimizer: AdamW (transformers default)
+  + Scheduler: linear with warmup 0–300 steps
+- Compute rough estimates:
+  + QLoRA on 7B/8B: can run on a single 80GB A100 or multi-GPU (NVIDIA 40GB A100 x2) comfortably.
+  + 13B+ benefits from multi-GPU or flatten tricks.
+- If you don’t have GPUs, consider smaller model (Mistral 7B, LLaMA-2 7B) or cloud instances.
 
-# (Deprecated) Llama 2
+For CPU inference or full model, you can peft load adapters back onto a base model.
 
-We are unlocking the power of large language models. Llama 2 is now accessible to individuals, creators, researchers, and businesses of all sizes so that they can experiment, innovate, and scale their ideas responsibly. 
-
-This release includes model weights and starting code for pre-trained and fine-tuned Llama language models — ranging from 7B to 70B parameters.
-
-This repository is intended as a minimal example to load [Llama 2](https://ai.meta.com/research/publications/llama-2-open-foundation-and-fine-tuned-chat-models/) models and run inference. For more detailed examples leveraging Hugging Face, see [llama-cookbook](https://github.com/facebookresearch/llama-recipes/).
-
-## Updates post-launch
-
-See [UPDATES.md](UPDATES.md). Also for a running list of frequently asked questions, see [here](https://ai.meta.com/llama/faq/).
-
-## Download
-
-In order to download the model weights and tokenizer, please visit the [Meta website](https://ai.meta.com/resources/models-and-libraries/llama-downloads/) and accept our License.
-
-Once your request is approved, you will receive a signed URL over email. Then run the download.sh script, passing the URL provided when prompted to start the download.
-
-Pre-requisites: Make sure you have `wget` and `md5sum` installed. Then run the script: `./download.sh`.
-
-Keep in mind that the links expire after 24 hours and a certain amount of downloads. If you start seeing errors such as `403: Forbidden`, you can always re-request a link.
-
-### Access to Hugging Face
-
-We are also providing downloads on [Hugging Face](https://huggingface.co/meta-llama). You can request access to the models by acknowledging the license and filling the form in the model card of a repo. After doing so, you should get access to all the Llama models of a version (Code Llama, Llama 2, or Llama Guard) within 1 hour.
-
-## Quick Start
-
-You can follow the steps below to quickly get up and running with Llama 2 models. These steps will let you run quick inference locally. For more examples, see the [Llama 2 cookbook repository](https://github.com/facebookresearch/llama-recipes). 
-
-1. In a conda env with PyTorch / CUDA available clone and download this repository.
-
-2. In the top-level directory run:
-    ```bash
-    pip install -e .
-    ```
-3. Visit the [Meta website](https://ai.meta.com/resources/models-and-libraries/llama-downloads/) and register to download the model/s.
-
-4. Once registered, you will get an email with a URL to download the models. You will need this URL when you run the download.sh script.
-
-5. Once you get the email, navigate to your downloaded llama repository and run the download.sh script. 
-    - Make sure to grant execution permissions to the download.sh script
-    - During this process, you will be prompted to enter the URL from the email. 
-    - Do not use the “Copy Link” option but rather make sure to manually copy the link from the email.
-
-6. Once the model/s you want have been downloaded, you can run the model locally using the command below:
-```bash
-torchrun --nproc_per_node 1 example_chat_completion.py \
-    --ckpt_dir llama-2-7b-chat/ \
-    --tokenizer_path tokenizer.model \
-    --max_seq_len 512 --max_batch_size 6
-```
-**Note**
-- Replace  `llama-2-7b-chat/` with the path to your checkpoint directory and `tokenizer.model` with the path to your tokenizer model.
-- The `–nproc_per_node` should be set to the [MP](#inference) value for the model you are using.
-- Adjust the `max_seq_len` and `max_batch_size` parameters as needed.
-- This example runs the [example_chat_completion.py](example_chat_completion.py) found in this repository but you can change that to a different .py file.
-
-## Inference
-
-Different models require different model-parallel (MP) values:
-
-|  Model | MP |
-|--------|----|
-| 7B     | 1  |
-| 13B    | 2  |
-| 70B    | 8  |
-
-All models support sequence length up to 4096 tokens, but we pre-allocate the cache according to `max_seq_len` and `max_batch_size` values. So set those according to your hardware.
-
-### Pretrained Models
-
-These models are not finetuned for chat or Q&A. They should be prompted so that the expected answer is the natural continuation of the prompt.
-
-See `example_text_completion.py` for some examples. To illustrate, see the command below to run it with the llama-2-7b model (`nproc_per_node` needs to be set to the `MP` value):
-
-```
-torchrun --nproc_per_node 1 example_text_completion.py \
-    --ckpt_dir llama-2-7b/ \
-    --tokenizer_path tokenizer.model \
-    --max_seq_len 128 --max_batch_size 4
-```
-
-### Fine-tuned Chat Models
-
-The fine-tuned models were trained for dialogue applications. To get the expected features and performance for them, a specific formatting defined in [`chat_completion`](https://github.com/facebookresearch/llama/blob/main/llama/generation.py#L212)
-needs to be followed, including the `INST` and `<<SYS>>` tags, `BOS` and `EOS` tokens, and the whitespaces and breaklines in between (we recommend calling `strip()` on inputs to avoid double-spaces).
-
-You can also deploy additional classifiers for filtering out inputs and outputs that are deemed unsafe. See the llama-cookbook repo for [an example](https://github.com/facebookresearch/llama-recipes/blob/main/examples/inference.py) of how to add a safety checker to the inputs and outputs of your inference code.
-
-Examples using llama-2-7b-chat:
-
-```
-torchrun --nproc_per_node 1 example_chat_completion.py \
-    --ckpt_dir llama-2-7b-chat/ \
-    --tokenizer_path tokenizer.model \
-    --max_seq_len 512 --max_batch_size 6
-```
-
-Llama 2 is a new technology that carries potential risks with use. Testing conducted to date has not — and could not — cover all scenarios.
-In order to help developers address these risks, we have created the [Responsible Use Guide](Responsible-Use-Guide.pdf). More details can be found in our research paper as well.
-
-## Issues
-
-Please report any software “bug”, or other problems with the models through one of the following means:
-- Reporting issues with the model: [github.com/facebookresearch/llama](http://github.com/facebookresearch/llama)
-- Reporting risky content generated by the model: [developers.facebook.com/llama_output_feedback](http://developers.facebook.com/llama_output_feedback)
-- Reporting bugs and security concerns: [facebook.com/whitehat/info](http://facebook.com/whitehat/info)
-
-## Model Card
-See [MODEL_CARD.md](MODEL_CARD.md).
-
-## License
-
-Our model and weights are licensed for both researchers and commercial entities, upholding the principles of openness. Our mission is to empower individuals, and industry through this opportunity, while fostering an environment of discovery and ethical AI advancements. 
-
-See the [LICENSE](LICENSE) file, as well as our accompanying [Acceptable Use Policy](USE_POLICY.md)
-
-## References
-
-1. [Research Paper](https://ai.meta.com/research/publications/llama-2-open-foundation-and-fine-tuned-chat-models/)
-2. [Llama 2 technical overview](https://ai.meta.com/resources/models-and-libraries/llama)
-3. [Open Innovation AI Research Community](https://ai.meta.com/llama/open-innovation-ai-research-community/)
-
-For common questions, the FAQ can be found [here](https://ai.meta.com/llama/faq/) which will be kept up to date over time as new questions arise. 
-
-## Original Llama
-The repo for the original llama release is in the [`llama_v1`](https://github.com/facebookresearch/llama/tree/llama_v1) branch.
+## **HuggingFace Datasets**
+ARC: https://huggingface.co/datasets/allenai/ai2_arc
+RACE: https://huggingface.co/datasets/ehovy/race
